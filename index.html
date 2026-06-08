@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SignBridge — ASL Translator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <div class="loader-inner">
+      <div class="loader-hand">🤟</div>
+      <p class="loader-text">Loading SignBridge<span class="dots">...</span></p>
+      <div class="loader-bar"><div class="loader-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-icon">🤟</span>
+      <span class="logo-text">Sign<strong>Bridge</strong></span>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-tab="sign2speech">Sign → Speech</button>
+      <button class="nav-btn" data-tab="speech2sign">Speech → Sign</button>
+    </nav>
+    <div class="header-badge">ASL Translator v2.0</div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ===== TAB 1: SIGN TO SPEECH ===== -->
+    <section id="tab-sign2speech" class="tab-section active">
+
+      <div class="section-hero">
+        <h1>Sign <span class="accent">to</span> Speech</h1>
+        <p>Show your hand signs to the camera. AI detects each letter and builds your sentence in real time.</p>
+      </div>
+
+      <div class="sign2speech-layout">
+
+        <!-- Camera Panel -->
+        <div class="panel camera-panel">
+          <div class="panel-header">
+            <span class="panel-dot red"></span>
+            <span class="panel-dot yellow"></span>
+            <span class="panel-dot green"></span>
+            <span class="panel-label">Live Camera Feed</span>
+            <div class="camera-status" id="cameraStatus">
+              <span class="status-dot off"></span>
+              <span>Camera Off</span>
+            </div>
+          </div>
+          <div class="video-container">
+            <video id="webcam" autoplay muted playsinline></video>
+            <canvas id="overlayCanvas"></canvas>
+            <div class="video-placeholder" id="videoPlaceholder">
+              <div class="placeholder-icon">📷</div>
+              <p>Camera not started</p>
+              <small>Click "Start Camera" below</small>
+            </div>
+            <div class="detection-overlay" id="detectionOverlay">
+              <div class="detection-box" id="detectionBox"></div>
+              <div class="detected-letter-badge" id="detectedBadge"></div>
+            </div>
+            <div class="confidence-bar-container" id="confidenceBar">
+              <div class="confidence-label">Confidence</div>
+              <div class="confidence-track">
+                <div class="confidence-fill" id="confidenceFill"></div>
+              </div>
+              <span class="confidence-pct" id="confidencePct">0%</span>
+            </div>
+          </div>
+
+          <div class="camera-controls">
+            <button class="btn btn-primary" id="startCameraBtn">
+              <span class="btn-icon">▶</span> Start Camera
+            </button>
+            <button class="btn btn-danger hidden" id="stopCameraBtn">
+              <span class="btn-icon">⏹</span> Stop Camera
+            </button>
+            <button class="btn btn-secondary" id="toggleDetectionBtn" disabled>
+              <span class="btn-icon">🔍</span> Detection: ON
+            </button>
+            <button class="btn btn-ghost" id="flipCameraBtn" disabled>
+              <span class="btn-icon">🔄</span> Flip
+            </button>
+          </div>
+
+          <!-- Letter hold indicator -->
+          <div class="hold-indicator" id="holdIndicator">
+            <div class="hold-ring" id="holdRing"></div>
+            <span id="holdLetter"></span>
+          </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="output-side">
+
+          <!-- Current Detection -->
+          <div class="panel detect-panel">
+            <div class="panel-header">
+              <span class="panel-label">🔎 Current Detection</span>
+            </div>
+            <div class="detect-body">
+              <div class="big-letter" id="bigLetter">—</div>
+              <div class="detect-meta">
+                <div class="detect-stat">
+                  <label>FPS</label>
+                  <span id="statFps">0</span>
+                </div>
+                <div class="detect-stat">
+                  <label>Latency</label>
+                  <span id="statLatency">0ms</span>
+                </div>
+                <div class="detect-stat">
+                  <label>Letters</label>
+                  <span id="statLetters">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Word Builder -->
+          <div class="panel word-panel">
+            <div class="panel-header">
+              <span class="panel-label">✍️ Word Builder</span>
+              <div class="word-actions">
+                <button class="mini-btn" id="addSpaceBtn" title="Add Space">SPACE</button>
+                <button class="mini-btn" id="backspaceBtn" title="Backspace">⌫</button>
+                <button class="mini-btn danger" id="clearWordBtn" title="Clear">✕</button>
+              </div>
+            </div>
+            <div class="word-display" id="wordDisplay">
+              <span class="cursor-blink">|</span>
+            </div>
+            <div class="letter-stream" id="letterStream"></div>
+          </div>
+
+          <!-- Sentence Builder -->
+          <div class="panel sentence-panel">
+            <div class="panel-header">
+              <span class="panel-label">💬 Sentence</span>
+              <div class="word-actions">
+                <button class="mini-btn" id="addWordBtn" title="Add word to sentence">+ Word</button>
+                <button class="mini-btn danger" id="clearSentenceBtn" title="Clear sentence">Clear</button>
+              </div>
+            </div>
+            <div class="sentence-display" id="sentenceDisplay">
+              <em class="placeholder-text">Your sentence will appear here...</em>
+            </div>
+            <div class="tts-controls">
+              <button class="btn btn-tts" id="speakBtn" disabled>
+                <span>🔊</span> Speak Sentence
+              </button>
+              <button class="btn btn-tts-secondary" id="copySentenceBtn">
+                <span>📋</span> Copy
+              </button>
+              <select id="voiceSelect" class="voice-select">
+                <option value="">Default Voice</option>
+              </select>
+              <div class="speed-control">
+                <label>Speed</label>
+                <input type="range" id="speechSpeed" min="0.5" max="2" step="0.1" value="1">
+                <span id="speedVal">1x</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ASL Reference Strip -->
+      <div class="reference-strip">
+        <div class="strip-header">
+          <span>ASL Quick Reference</span>
+          <button class="mini-btn" id="toggleReference">Hide</button>
+        </div>
+        <div class="sign-grid" id="signGrid"></div>
+      </div>
+
+      <!-- ── Task 5: Custom Gesture Panel ─────────────────────────────── -->
+      <div class="reference-strip custom-gesture-panel">
+        <div class="strip-header">
+          <span>🤙 Custom Gestures <small style="font-weight:400;opacity:.7">(KNN Template Matching)</small></span>
+        </div>
+        <div class="custom-gesture-capture">
+          <p class="gesture-hint">
+            Pose your hand, type a meaning, then click <strong>Capture</strong>.
+            The gesture will be recognised live alongside standard ASL letters.
+          </p>
+          <div class="gesture-input-row">
+            <input
+              type="text"
+              id="gestureMeaning"
+              class="gesture-meaning-input"
+              placeholder="Meaning (e.g. Water, Help, Yes)"
+              maxlength="40"
+            />
+            <button class="btn btn-primary" id="captureGestureBtn" disabled>
+              📸 Capture Gesture
+            </button>
+          </div>
+        </div>
+        <div id="savedGestureList" class="saved-gesture-list">
+          <p class="gesture-empty">No custom gestures saved yet.</p>
+        </div>
+        <div class="gesture-footer">
+          <button class="btn btn-ghost btn-sm" id="clearGesturesBtn">🗑 Clear All Gestures</button>
+          <span class="gesture-storage-note">Gestures are saved in localStorage.</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ===== TAB 2: SPEECH TO SIGN ===== -->
+    <section id="tab-speech2sign" class="tab-section">
+
+      <div class="section-hero">
+        <h1>Speech <span class="accent">to</span> Sign</h1>
+        <p>Type or speak your text and watch it transform into ASL hand signs, letter by letter.</p>
+      </div>
+
+      <div class="speech2sign-layout">
+
+        <!-- Input Panel -->
+        <div class="panel input-panel">
+          <div class="panel-header">
+            <span class="panel-label">📝 Input Text</span>
+          </div>
+          <textarea 
+            id="textInput" 
+            class="text-input" 
+            placeholder="Type your message here...&#10;&#10;Example: HELLO WORLD"
+            rows="5"
+            maxlength="200"
+          ></textarea>
+          <div class="input-meta">
+            <span id="charCount">0/200</span>
+            <span class="mic-hint">or</span>
+            <button class="btn btn-mic" id="micBtn">
+              <span class="mic-icon">🎤</span> Use Microphone
+            </button>
+          </div>
+          <div class="s2s-controls">
+            <button class="btn btn-primary" id="translateBtn">
+              <span>▶</span> Translate to Signs
+            </button>
+            <button class="btn btn-secondary" id="autoPlayBtn">
+              <span>⚡</span> Auto-Play
+            </button>
+            <button class="btn btn-ghost" id="clearTextBtn">Clear</button>
+          </div>
+          <div class="playback-controls" id="playbackControls" style="display:none">
+            <button class="ctrl-btn" id="prevSignBtn">⏮</button>
+            <button class="ctrl-btn primary" id="playPauseBtn">⏸</button>
+            <button class="ctrl-btn" id="nextSignBtn">⏭</button>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">0/0</span>
+            <div class="speed-control">
+              <label>Speed</label>
+              <input type="range" id="signSpeed" min="200" max="2000" step="100" value="800">
+              <span id="signSpeedVal">0.8s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sign Display Panel -->
+        <div class="panel sign-display-panel">
+          <div class="panel-header">
+            <span class="panel-label">🤲 Sign Display</span>
+            <div class="sign-meta" id="signMeta">
+              <span id="currentSignLabel">—</span>
+            </div>
+          </div>
+          <div class="sign-showcase">
+            <div class="sign-image-wrapper" id="signImageWrapper">
+              <div class="sign-placeholder" id="signPlaceholder">
+                <div class="placeholder-icon">🤲</div>
+                <p>Enter text and click Translate</p>
+              </div>
+              <img id="signImage" src="" alt="ASL Sign" class="sign-img hidden" />
+              <div class="sign-letter-overlay" id="signLetterOverlay"></div>
+            </div>
+            <div class="sign-word-context" id="signWordContext"></div>
+          </div>
+          <div class="letter-sequence" id="letterSequence"></div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="js/asl-signs.js"></script>
+  <script src="js/hand-detector.js"></script>
+  <script src="js/sign-to-speech.js"></script>
+  <script src="js/speech-to-sign.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
